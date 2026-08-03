@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hub de Ferramentas - Escritório</title>
+<style>
+  :root {
+    --bg: #0f1720;
+    --card-bg: #1a2431;
+    --card-hover: #22303f;
+    --accent: #3b82f6;
+    --text: #e6edf3;
+    --text-dim: #94a3b8;
+    --border: #2a3644;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: linear-gradient(180deg, var(--bg) 0%, #0a0f16 100%);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 20px 80px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  header h1 {
+    margin: 0 0 8px;
+    font-size: 2rem;
+    font-weight: 700;
+  }
+
+  header p {
+    margin: 0;
+    color: var(--text-dim);
+    font-size: 1rem;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 20px;
+    width: 100%;
+    max-width: 900px;
+  }
+
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    text-decoration: none;
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  }
+
+  .card:hover {
+    background: var(--card-hover);
+    border-color: var(--accent);
+    transform: translateY(-3px);
+  }
+
+  .card .icon {
+    font-size: 1.8rem;
+  }
+
+  .card .name {
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+
+  .card .desc {
+    font-size: 0.88rem;
+    color: var(--text-dim);
+    line-height: 1.4;
+  }
+
+  .card .open {
+    margin-top: auto;
+    font-size: 0.85rem;
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  footer {
+    margin-top: 56px;
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    text-align: center;
+  }
+
+  .empty {
+    color: var(--text-dim);
+    text-align: center;
+    padding: 40px;
+    grid-column: 1 / -1;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🧰 Ferramentas do Escritório</h1>
+  <p>Acesso rápido às ferramentas online da Cricon</p>
+</header>
+
+<div class="grid" id="grid"></div>
+
+<footer>Para adicionar uma nova ferramenta, edite a lista no início do arquivo index.html</footer>
+
+<script>
+  // ==============================================
+  //  ADICIONE NOVAS FERRAMENTAS AQUI
+  //  Copie um bloco { ... } e ajuste os campos:
+  //  icon  -> um emoji qualquer
+  //  name  -> nome da ferramenta
+  //  desc  -> descrição curta (opcional)
+  //  url   -> link do site no Netlify
+  // ==============================================
+  const tools = [
+    {
+      icon: "🏦",
+      name: "Conversor de Extrato",
+      desc: "Converte extratos bancários para OFX",
+      url: "https://extrato-ofx.netlify.app/"
+    },
+    {
+      icon: "📊",
+      name: "Fechamento Contábil",
+      desc: "Ferramenta de fechamento contábil",
+      url: "https://fechamentocricon.netlify.app/"
+    }
+  ];
+  // ==============================================
+
+  const grid = document.getElementById("grid");
+
+  if (tools.length === 0) {
+    grid.innerHTML = '<div class="empty">Nenhuma ferramenta cadastrada ainda.</div>';
+  } else {
+    tools.forEach(tool => {
+      const card = document.createElement("a");
+      card.className = "card";
+      card.href = tool.url;
+      card.target = "_blank";
+      card.rel = "noopener noreferrer";
+      card.innerHTML = `
+        <div class="icon">${tool.icon || "🔗"}</div>
+        <div class="name">${tool.name}</div>
+        ${tool.desc ? `<div class="desc">${tool.desc}</div>` : ""}
+        <div class="open">Abrir ferramenta →</div>
+      `;
+      grid.appendChild(card);
+    });
+  }
+</script>
+
+</body>
+</html>
