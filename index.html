@@ -185,7 +185,7 @@
     margin-bottom: 5px;
   }
 
-  #loginScreen input {
+  #loginScreen input:not([type="checkbox"]) {
     width: 100%;
     padding: 10px 12px;
     border-radius: 8px;
@@ -194,7 +194,7 @@
     color: var(--text);
     font-size: 0.95rem;
   }
-  #loginScreen input:focus { outline: none; border-color: var(--accent); }
+  #loginScreen input:not([type="checkbox"]):focus { outline: none; border-color: var(--accent); }
 
   #loginScreen button[type="submit"] {
     background: var(--accent);
