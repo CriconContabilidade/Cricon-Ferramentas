@@ -135,6 +135,44 @@
     grid-column: 1 / -1;
   }
 
+  .tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    width: 100%;
+    max-width: 900px;
+    margin-bottom: 24px;
+  }
+
+  .tab {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
+
+  .tab:hover {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+
+  .tab.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+
+  .tab .count {
+    opacity: 0.75;
+    font-weight: 400;
+    margin-left: 6px;
+  }
+
   #app { display: none; width: 100%; flex-direction: column; align-items: center; }
 
   .user-bar {
@@ -269,6 +307,8 @@
     <p class="lead">🧰 Ferramentas do Escritório — acesso rápido às ferramentas online</p>
   </header>
 
+  <div class="tabs" id="tabs"></div>
+
   <div class="grid" id="grid"></div>
 
   <footer>Para adicionar uma nova ferramenta, edite a lista no início do arquivo index.html</footer>
@@ -352,81 +392,103 @@
   // ==============================================
   //  ADICIONE NOVAS FERRAMENTAS AQUI
   //  Copie um bloco { ... } e ajuste os campos:
-  //  icon  -> um emoji qualquer
-  //  name  -> nome da ferramenta
-  //  desc  -> descrição curta (opcional)
-  //  url   -> link do site
+  //  icon      -> um emoji qualquer
+  //  name      -> nome da ferramenta
+  //  desc      -> descrição curta (opcional)
+  //  url       -> link do site
+  //  category  -> "comum" | "importacoes" | "clientes"
   // ==============================================
   const tools = [
     {
       icon: "🏦",
       name: "Conversor de Extrato",
       desc: "Converte extratos bancários para OFX",
-      url: "https://criconcontabilidade.github.io/Conversor-de-Arquivo/"
+      url: "https://criconcontabilidade.github.io/Conversor-de-Arquivo/",
+      category: "importacoes"
     },
     {
       icon: "📊",
       name: "Fechamento Contábil",
       desc: "Ferramenta de fechamento contábil",
-      url: "https://criconcontabilidade.github.io/Fechamentos-Cont-beis/"
+      url: "https://criconcontabilidade.github.io/Fechamentos-Cont-beis/",
+      category: "comum"
     },
     {
       icon: "🔄",
       name: "Conversões Cibele",
       desc: "Conversões de extrato/relatórios para importação no Domínio, por cliente",
-      url: "https://criconcontabilidade.github.io/Conversoes-Cibele/"
+      url: "https://criconcontabilidade.github.io/Conversoes-Cibele/",
+      category: "importacoes"
     },
     {
       icon: "🧾",
       name: "Rubricas da Folha",
       desc: "Catálogo de configurações de Débito/Crédito x Rubricas por empresa, com checagem de duplicidade",
-      url: "https://criconcontabilidade.github.io/Rubricas-Folha/"
+      url: "https://criconcontabilidade.github.io/Rubricas-Folha/",
+      category: "comum"
     },
     {
       icon: "🏛️",
       name: "Lançamentos Holdings",
       desc: "Extratos Unicred/BTG das holdings AFA, EBR, GBG e LTA convertidos em Escrita Holding e Lançamentos Holding",
-      url: "https://criconcontabilidade.github.io/Lancamentos-Holdings/"
+      url: "https://criconcontabilidade.github.io/Lancamentos-Holdings/",
+      category: "clientes"
     },
     {
       icon: "🏠",
       name: "Aluguéis Mantovani",
       desc: "Cadastro de imóveis/inquilinos, controle de IPTU e lançamentos mensais das 6 imobiliárias convertidos em Mantovani (NFS), Baixas de Serviços e Lançamentos",
-      url: "https://criconcontabilidade.github.io/Alugueis-Mantovani/"
+      url: "https://criconcontabilidade.github.io/Alugueis-Mantovani/",
+      category: "clientes"
     },
     {
       icon: "🏦",
       name: "Lançamentos Samdesc e Cias",
       desc: "Extrato de conta corrente Stone da Samdesc convertido em lançamentos (rendimento, recebimento de vendas e saídas) prontos pra importação no Domínio",
-      url: "https://criconcontabilidade.github.io/Lancamentos-Samdesc-Cias/"
+      url: "https://criconcontabilidade.github.io/Lancamentos-Samdesc-Cias/",
+      category: "clientes"
     },
     {
       icon: "⚖️",
       name: "Reforma Tributária",
       desc: "Cronograma, códigos de serviço, tributação de serviços, Imposto Seletivo e benefícios fiscais da Reforma Tributária (CBS/IBS/IS)",
-      url: "https://criconcontabilidade.github.io/Reforma-Tributaria/"
+      url: "https://criconcontabilidade.github.io/Reforma-Tributaria/",
+      category: "comum"
     },
     {
       icon: "🧾",
       name: "Baixas de Parcelas",
       desc: "Gera baixa_ent.txt / baixa_sai.txt / baixa_ser.txt pra importar no Domínio, pra qualquer empresa — lê a empresa sozinha do relatório de Contas a Pagar/Receber e resolve o CNPJ pelo cadastro compartilhado",
-      url: "https://criconcontabilidade.github.io/Baixas-Parcelas/"
+      url: "https://criconcontabilidade.github.io/Baixas-Parcelas/",
+      category: "importacoes"
     },
     {
       icon: "🏗️",
       name: "Lançamentos Bari",
       desc: "Lê o relatório de recibos (NF de Locação) da Bari e gera a planilha/TXT de Nota Fiscal de Serviços pra importar no Domínio, com correção automática de data e CNPJ e revisão antes de exportar",
-      url: "https://criconcontabilidade.github.io/Lancamentos-Bari/"
+      url: "https://criconcontabilidade.github.io/Lancamentos-Bari/",
+      category: "clientes"
     }
   ];
   // ==============================================
 
-  const grid = document.getElementById("grid");
+  const CATEGORIES = [
+    { id: "comum", icon: "🧰", label: "Uso Comum" },
+    { id: "importacoes", icon: "📥", label: "Importações Genéricas" },
+    { id: "clientes", icon: "🏢", label: "Contabilizações dos Clientes" }
+  ];
 
-  if (tools.length === 0) {
-    grid.innerHTML = '<div class="empty">Nenhuma ferramenta cadastrada ainda.</div>';
-  } else {
-    tools.forEach(tool => {
+  const grid = document.getElementById("grid");
+  const tabsEl = document.getElementById("tabs");
+
+  function renderGrid(categoryId) {
+    const list = tools.filter(t => t.category === categoryId);
+    grid.innerHTML = "";
+    if (list.length === 0) {
+      grid.innerHTML = '<div class="empty">Nenhuma ferramenta neste grupo.</div>';
+      return;
+    }
+    list.forEach(tool => {
       const card = document.createElement("a");
       card.className = "card";
       card.href = tool.url;
@@ -441,6 +503,27 @@
       grid.appendChild(card);
     });
   }
+
+  function renderTabs() {
+    tabsEl.innerHTML = "";
+    CATEGORIES.forEach((cat, index) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "tab";
+      if (index === 0) btn.classList.add("active");
+      const count = tools.filter(t => t.category === cat.id).length;
+      btn.innerHTML = `${cat.icon} ${cat.label} <span class="count">(${count})</span>`;
+      btn.addEventListener("click", () => {
+        tabsEl.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        renderGrid(cat.id);
+      });
+      tabsEl.appendChild(btn);
+    });
+  }
+
+  renderTabs();
+  renderGrid(CATEGORIES[0].id);
 </script>
 
 </body>
