@@ -173,6 +173,99 @@
     margin-left: 6px;
   }
 
+  .resp-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    width: 100%;
+    max-width: 900px;
+  }
+
+  .resp-btn {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 12px;
+    padding: 14px 22px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+
+  .resp-btn:hover { border-color: var(--accent); }
+
+  .resp-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+
+  .resp-btn .resp-count {
+    opacity: 0.75;
+    font-weight: 400;
+    font-size: 0.85rem;
+  }
+
+  .resp-companies {
+    width: 100%;
+    max-width: 900px;
+    margin-top: 16px;
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .resp-companies.show { display: flex; }
+
+  .company-row {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    text-decoration: none;
+    color: var(--text);
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+
+  .company-row:hover {
+    background: var(--card-hover);
+    border-color: var(--accent);
+  }
+
+  .company-row .icon { font-size: 1.3rem; flex-shrink: 0; }
+
+  .company-row .company-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .company-row .name { font-weight: 600; font-size: 0.98rem; }
+
+  .company-row .desc {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .company-row .open {
+    flex-shrink: 0;
+    color: var(--accent);
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
   #app { display: none; width: 100%; flex-direction: column; align-items: center; }
 
   .user-bar {
@@ -310,6 +403,8 @@
   <div class="tabs" id="tabs"></div>
 
   <div class="grid" id="grid"></div>
+  <div class="resp-grid" id="respGrid"></div>
+  <div class="resp-companies" id="respCompanies"></div>
 
   <footer>Para adicionar uma nova ferramenta, edite a lista no início do arquivo index.html</footer>
 </div>
@@ -397,6 +492,7 @@
   //  desc      -> descrição curta (opcional)
   //  url       -> link do site
   //  category  -> "comum" | "importacoes" | "clientes"
+  //  responsavel -> nome do responsável (só usado na categoria "clientes")
   // ==============================================
   const tools = [
     {
@@ -453,28 +549,32 @@
       name: "GLADIUS / GRD",
       desc: "Conversões de extrato/relatórios para importação no Domínio, por cliente",
       url: "https://criconcontabilidade.github.io/Conversoes-Cibele/",
-      category: "clientes"
+      category: "clientes",
+      responsavel: "Bruna"
     },
     {
       icon: "🏛️",
       name: "Holding AFA / EBR / GBG / LTA",
       desc: "Extratos Unicred/BTG das holdings AFA, EBR, GBG e LTA convertidos em Escrita Holding e Lançamentos Holding",
       url: "https://criconcontabilidade.github.io/Lancamentos-Holdings/",
-      category: "clientes"
+      category: "clientes",
+      responsavel: "Guilherme"
     },
     {
       icon: "🏠",
       name: "Mantovani",
       desc: "Cadastro de imóveis/inquilinos, controle de IPTU e lançamentos mensais das 6 imobiliárias convertidos em Mantovani (NFS), Baixas de Serviços e Lançamentos",
       url: "https://criconcontabilidade.github.io/Alugueis-Mantovani/",
-      category: "clientes"
+      category: "clientes",
+      responsavel: "Guilherme"
     },
     {
       icon: "🏦",
       name: "Samdesc e Cias",
       desc: "Extrato de conta corrente Stone da Samdesc convertido em lançamentos (rendimento, recebimento de vendas e saídas) prontos pra importação no Domínio",
       url: "https://criconcontabilidade.github.io/Lancamentos-Samdesc-Cias/",
-      category: "clientes"
+      category: "clientes",
+      responsavel: "Natali"
     },
     {
       icon: "🧾",
@@ -488,42 +588,48 @@
       name: "Bari",
       desc: "Lê o relatório de recibos (NF de Locação) da Bari e gera a planilha/TXT de Nota Fiscal de Serviços pra importar no Domínio, com correção automática de data e CNPJ e revisão antes de exportar",
       url: "https://criconcontabilidade.github.io/Lancamentos-Bari/",
-      category: "clientes"
+      category: "clientes",
+      responsavel: "Guilherme"
     },
     {
       icon: "⚖️",
       name: "Sindicato dos Cartórios",
       desc: "Extrato Credcrea + planilha de fluxo de caixa convertidos em lançamentos: recebimentos de contribuição assistencial reconhecidos automaticamente, pagamentos casados com o histórico da planilha e conta débito em branco pra completar à mão",
       url: "https://criconcontabilidade.github.io/Lancamentos-Sindicato-Cartorios/",
-      category: "clientes"
+      category: "clientes",
+      responsavel: "Guilherme"
     },
     {
       icon: "📜",
       name: "Dario e Freitas",
       desc: "Extrato SICOOB do escritório de advocacia: baixa notas fiscais quando há, e guarda custas processuais e repasses judiciais sem nota como pendência até casar por valor com o lançamento oposto, em qualquer mês",
       url: "https://criconcontabilidade.github.io/Dario-e-Freitas/",
-      category: "clientes"
+      category: "clientes",
+      responsavel: "Guilherme"
     },
     {
       icon: "🗣️",
       name: "Cia da Língua",
       desc: "Contas Pagas, extrato da Aplicação CDB e extrato da conta corrente convertidos em lançamentos, mais a baixa de serviços recebidos de clientes, prontos pra importação no Domínio",
       url: "https://criconcontabilidade.github.io/Lancamentos-Cia-da-Lingua/",
-      category: "clientes"
+      category: "clientes",
+      responsavel: "Natali"
     },
     {
       icon: "🏥",
       name: "Equilíbrio",
       desc: "Baixa de Serviço (cartão + Pix), Baixa de Pagamentos (Contas a Pagar x extrato Unicred) e Lançamentos Contábeis por padrões cadastrados, gerando os arquivos de importação do Domínio",
       url: "https://criconcontabilidade.github.io/Baixa-Servico-Equilibrio/",
-      category: "clientes"
+      category: "clientes",
+      responsavel: "Natali"
     },
     {
       icon: "⚖️",
       name: "Vidal Adv",
       desc: "Extrato Banco Inter convertido em lançamentos por cadastro de padrões, baixa de serviços recebidos de clientes e rendimentos de aplicações de renda fixa (uma conta por CDB), prontos pra importação no Domínio",
       url: "https://criconcontabilidade.github.io/Vidal/",
-      category: "clientes"
+      category: "clientes",
+      responsavel: "Natali"
     }
   ];
   // ==============================================
@@ -536,8 +642,21 @@
 
   const grid = document.getElementById("grid");
   const tabsEl = document.getElementById("tabs");
+  const respGrid = document.getElementById("respGrid");
+  const respCompanies = document.getElementById("respCompanies");
 
   function renderGrid(categoryId) {
+    respGrid.style.display = "none";
+    respCompanies.classList.remove("show");
+    respCompanies.innerHTML = "";
+
+    if (categoryId === "clientes") {
+      grid.style.display = "none";
+      renderResponsaveis();
+      return;
+    }
+
+    grid.style.display = "grid";
     const list = tools.filter(t => t.category === categoryId);
     grid.innerHTML = "";
     if (list.length === 0) {
@@ -557,6 +676,59 @@
         <div class="open">Abrir ferramenta →</div>
       `;
       grid.appendChild(card);
+    });
+  }
+
+  function renderResponsaveis() {
+    const clientTools = tools.filter(t => t.category === "clientes");
+    const byResp = {};
+    clientTools.forEach(tool => {
+      const resp = tool.responsavel || "Sem responsável";
+      if (!byResp[resp]) byResp[resp] = [];
+      byResp[resp].push(tool);
+    });
+
+    respGrid.innerHTML = "";
+    respGrid.style.display = "flex";
+
+    if (clientTools.length === 0) {
+      respGrid.innerHTML = '<div class="empty">Nenhuma ferramenta neste grupo.</div>';
+      return;
+    }
+
+    Object.keys(byResp).sort().forEach(resp => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "resp-btn";
+      btn.innerHTML = `👤 ${resp} <span class="resp-count">(${byResp[resp].length})</span>`;
+      btn.addEventListener("click", () => {
+        const wasActive = btn.classList.contains("active");
+        respGrid.querySelectorAll(".resp-btn").forEach(b => b.classList.remove("active"));
+        respCompanies.innerHTML = "";
+        if (wasActive) {
+          respCompanies.classList.remove("show");
+          return;
+        }
+        btn.classList.add("active");
+        byResp[resp].forEach(tool => {
+          const row = document.createElement("a");
+          row.className = "company-row";
+          row.href = tool.url;
+          row.target = "_blank";
+          row.rel = "noopener noreferrer";
+          row.innerHTML = `
+            <div class="icon">${tool.icon || "🔗"}</div>
+            <div class="company-info">
+              <div class="name">${tool.name}</div>
+              ${tool.desc ? `<div class="desc">${tool.desc}</div>` : ""}
+            </div>
+            <div class="open">Abrir →</div>
+          `;
+          respCompanies.appendChild(row);
+        });
+        respCompanies.classList.add("show");
+      });
+      respGrid.appendChild(btn);
     });
   }
 
