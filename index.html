@@ -99,6 +99,28 @@
     transform: translateY(-3px);
   }
 
+  .card[draggable="true"] { cursor: grab; }
+  .card.dragging { opacity: 0.4; }
+  .card.drag-over { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
+
+  .card .resp-badge {
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 2px 8px;
+    align-self: flex-start;
+  }
+
+  .drag-hint {
+    width: 100%;
+    max-width: 900px;
+    color: var(--text-dim);
+    font-size: 0.78rem;
+    margin: -10px 0 4px;
+  }
+
   .card .icon {
     font-size: 1.8rem;
   }
@@ -202,6 +224,12 @@
     background: var(--accent);
     border-color: var(--accent);
     color: white;
+  }
+
+  .resp-btn.drag-over {
+    border-color: #22c55e;
+    box-shadow: 0 0 0 2px #22c55e inset;
+    background: rgba(34,197,94,0.15);
   }
 
   .resp-btn .resp-count {
@@ -412,6 +440,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   // Mesmo projeto Firebase usado no Fechamento Contábil — como os dois
   // ficam no domínio criconcontabilidade.github.io, o login aqui já
@@ -428,6 +457,12 @@
 
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
+  // Firestore compartilhado (mesmo projeto do login) guarda a ordem das ferramentas e o
+  // responsável de cada uma — arrastar-e-soltar aqui reflete pra todo mundo que usa o Hub,
+  // não só no navegador de quem arrastou. O script clássico abaixo (não é módulo, não pode
+  // usar "import") acessa isso via window.hubFirestore.
+  const db = getFirestore(app);
+  window.hubFirestore = { db, doc, onSnapshot, setDoc };
 
   const loginScreen = document.getElementById('loginScreen');
   const appEl = document.getElementById('app');
@@ -597,7 +632,7 @@
       desc: "Separa o relatório unificado de dízimos/ofertas e despesas das duas igrejas (empresas diferentes) casando cada lançamento por valor e data contra o extrato Bradesco (Alive, 366) e Sicredi (Casa do Pai, 244), e gera os lançamentos de razão de cada empresa já batendo com o extrato dela",
       url: "https://criconcontabilidade.github.io/Lancamentos-Alive-CasaDoPai/",
       category: "clientes",
-      responsavel: "Guilherme"
+      responsavel: "Natali"
     },
     {
       icon: "⚖️",
@@ -648,61 +683,204 @@
     { id: "clientes", icon: "🏢", label: "Contabilizações dos Clientes" }
   ];
 
+  // Id estável de cada ferramenta pra guardar ordem/responsável no Firestore sem depender
+  // do texto do nome (que pode mudar) — usa o último pedaço da URL do GitHub Pages.
+  tools.forEach(t => { t.id = t.url.replace(/\/+$/, "").split("/").pop(); });
+
   const grid = document.getElementById("grid");
   const tabsEl = document.getElementById("tabs");
   const respGrid = document.getElementById("respGrid");
   const respCompanies = document.getElementById("respCompanies");
 
+  // ==============================================
+  //  PERSISTÊNCIA DA ORDEM / RESPONSÁVEL (arrastar-e-soltar)
+  //  Tenta Firestore (compartilhado com todo mundo que loga no Hub); se não der (Firestore
+  //  não habilitado no projeto, sem rede etc.), cai pro localStorage — só funciona no
+  //  navegador de quem mexeu, mas a ferramenta continua usável.
+  // ==============================================
+  const LOCAL_KEY = "hub_overrides_v1";
+  let overrides = { order: {}, responsavel: {} };
+  let firestoreOk = false;
+
+  function loadLocalOverrides() {
+    try { return JSON.parse(localStorage.getItem(LOCAL_KEY)) || { order: {}, responsavel: {} }; }
+    catch { return { order: {}, responsavel: {} }; }
+  }
+  function saveLocalOverrides() { localStorage.setItem(LOCAL_KEY, JSON.stringify(overrides)); }
+
+  async function persistOverrides() {
+    if (firestoreOk && window.hubFirestore) {
+      try {
+        const { db, doc: fdoc, setDoc } = window.hubFirestore;
+        await setDoc(fdoc(db, "hubConfig", "toolsMeta"), overrides, { merge: false });
+        return;
+      } catch (err) {
+        console.warn("Firestore indisponível, salvando só localmente:", err);
+        firestoreOk = false;
+      }
+    }
+    saveLocalOverrides();
+  }
+
+  function applyOverridesAndRerender() {
+    renderTabs();
+    renderGrid(getActiveCategoryId());
+  }
+
+  function initOverridesSync() {
+    overrides = loadLocalOverrides();
+    if (!window.hubFirestore) { applyOverridesAndRerender(); return; }
+    const { db, doc: fdoc, onSnapshot } = window.hubFirestore;
+    try {
+      onSnapshot(fdoc(db, "hubConfig", "toolsMeta"), snap => {
+        firestoreOk = true;
+        if (snap.exists()) {
+          const data = snap.data();
+          overrides = { order: data.order || {}, responsavel: data.responsavel || {} };
+          saveLocalOverrides(); // mantém uma cópia local como fallback offline
+        }
+        applyOverridesAndRerender();
+      }, err => {
+        console.warn("Sem acesso ao Firestore, usando só o cadastro local deste navegador:", err);
+        firestoreOk = false;
+        applyOverridesAndRerender();
+      });
+    } catch (err) {
+      console.warn("Firestore indisponível:", err);
+      applyOverridesAndRerender();
+    }
+  }
+
+  function effectiveResponsavel(tool) {
+    return overrides.responsavel[tool.id] || tool.responsavel || "Sem responsável";
+  }
+
+  // Ordena a lista de uma categoria pela ordem salva (ids desconhecidos/novos entram no
+  // fim, na ordem original do array-fonte) — nunca perde uma ferramenta por não estar na
+  // lista salva ainda.
+  function orderedList(categoryId) {
+    const list = tools.filter(t => t.category === categoryId);
+    const saved = overrides.order[categoryId];
+    if (!saved || !saved.length) return list;
+    const pos = new Map(saved.map((id, i) => [id, i]));
+    return list.slice().sort((a, b) => {
+      const pa = pos.has(a.id) ? pos.get(a.id) : Infinity;
+      const pb = pos.has(b.id) ? pos.get(b.id) : Infinity;
+      if (pa !== pb) return pa - pb;
+      return 0;
+    });
+  }
+
+  function setOrder(categoryId, orderedIds) {
+    overrides.order[categoryId] = orderedIds;
+    persistOverrides();
+  }
+  function setResponsavel(toolId, resp) {
+    overrides.responsavel[toolId] = resp;
+    persistOverrides();
+  }
+
+  // ==============================================
+  //  DRAG AND DROP (reordenar dentro da lista; na aba "Contabilizações dos Clientes" também
+  //  dá pra arrastar um card em cima de um botão de responsável pra reatribuir)
+  // ==============================================
+  let draggedId = null;
+
+  function wireCardDrag(card, tool, categoryId) {
+    card.draggable = true;
+    card.dataset.toolId = tool.id;
+    card.addEventListener("dragstart", e => {
+      draggedId = tool.id;
+      card.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", tool.id);
+    });
+    card.addEventListener("dragend", () => {
+      card.classList.remove("dragging");
+      grid.querySelectorAll(".card.drag-over").forEach(c => c.classList.remove("drag-over"));
+    });
+    card.addEventListener("dragover", e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      card.classList.add("drag-over");
+    });
+    card.addEventListener("dragleave", () => card.classList.remove("drag-over"));
+    card.addEventListener("drop", e => {
+      e.preventDefault();
+      card.classList.remove("drag-over");
+      if (!draggedId || draggedId === tool.id) return;
+      const current = orderedList(categoryId).map(t => t.id);
+      const from = current.indexOf(draggedId);
+      const to = current.indexOf(tool.id);
+      if (from === -1 || to === -1) return;
+      current.splice(from, 1);
+      current.splice(to, 0, draggedId);
+      setOrder(categoryId, current);
+      renderGrid(categoryId);
+    });
+  }
+
+  function buildCard(tool, categoryId, { showResp } = {}) {
+    const card = document.createElement("a");
+    card.className = "card";
+    card.href = tool.url;
+    card.target = "_blank";
+    card.rel = "noopener noreferrer";
+    card.innerHTML = `
+      <div class="icon">${tool.icon || "🔗"}</div>
+      <div class="name">${tool.name}</div>
+      ${tool.desc ? `<div class="desc">${tool.desc}</div>` : ""}
+      ${showResp ? `<div class="resp-badge">👤 ${effectiveResponsavel(tool)}</div>` : ""}
+      <div class="open">Abrir ferramenta →</div>
+    `;
+    wireCardDrag(card, tool, categoryId);
+    return card;
+  }
+
+  function getActiveCategoryId() {
+    const active = tabsEl.querySelector(".tab.active");
+    const idx = active ? [...tabsEl.children].indexOf(active) : 0;
+    return CATEGORIES[idx] ? CATEGORIES[idx].id : CATEGORIES[0].id;
+  }
+
   function renderGrid(categoryId) {
     respGrid.style.display = "none";
     respCompanies.classList.remove("show");
     respCompanies.innerHTML = "";
+    document.getElementById("dragHint")?.remove();
 
-    if (categoryId === "clientes") {
-      grid.style.display = "none";
-      renderResponsaveis();
-      return;
-    }
-
+    const list = orderedList(categoryId);
     grid.style.display = "grid";
-    const list = tools.filter(t => t.category === categoryId);
     grid.innerHTML = "";
+
+    if (categoryId === "clientes") renderResponsaveis(list);
+
     if (list.length === 0) {
       grid.innerHTML = '<div class="empty">Nenhuma ferramenta neste grupo.</div>';
       return;
     }
-    list.forEach(tool => {
-      const card = document.createElement("a");
-      card.className = "card";
-      card.href = tool.url;
-      card.target = "_blank";
-      card.rel = "noopener noreferrer";
-      card.innerHTML = `
-        <div class="icon">${tool.icon || "🔗"}</div>
-        <div class="name">${tool.name}</div>
-        ${tool.desc ? `<div class="desc">${tool.desc}</div>` : ""}
-        <div class="open">Abrir ferramenta →</div>
-      `;
-      grid.appendChild(card);
-    });
+
+    const hint = document.createElement("div");
+    hint.className = "drag-hint";
+    hint.id = "dragHint";
+    hint.textContent = categoryId === "clientes"
+      ? "Arraste um card pra reordenar, ou solte em cima de um responsável ali em cima pra reatribuir."
+      : "Arraste um card pra reordenar a lista.";
+    grid.parentNode.insertBefore(hint, grid);
+
+    list.forEach(tool => grid.appendChild(buildCard(tool, categoryId, { showResp: categoryId === "clientes" })));
   }
 
-  function renderResponsaveis() {
-    const clientTools = tools.filter(t => t.category === "clientes");
+  function renderResponsaveis(clientTools) {
     const byResp = {};
     clientTools.forEach(tool => {
-      const resp = tool.responsavel || "Sem responsável";
+      const resp = effectiveResponsavel(tool);
       if (!byResp[resp]) byResp[resp] = [];
       byResp[resp].push(tool);
     });
 
     respGrid.innerHTML = "";
     respGrid.style.display = "flex";
-
-    if (clientTools.length === 0) {
-      respGrid.innerHTML = '<div class="empty">Nenhuma ferramenta neste grupo.</div>';
-      return;
-    }
 
     Object.keys(byResp).sort().forEach(resp => {
       const btn = document.createElement("button");
@@ -736,17 +914,30 @@
         });
         respCompanies.classList.add("show");
       });
+      // Arrastar um card de ferramenta em cima deste botão reatribui o responsável — não
+      // precisa estar filtrando por essa pessoa pra soltar aqui.
+      btn.addEventListener("dragover", e => { e.preventDefault(); btn.classList.add("drag-over"); });
+      btn.addEventListener("dragleave", () => btn.classList.remove("drag-over"));
+      btn.addEventListener("drop", e => {
+        e.preventDefault();
+        btn.classList.remove("drag-over");
+        if (!draggedId) return;
+        setResponsavel(draggedId, resp);
+        renderTabs();
+        renderGrid("clientes");
+      });
       respGrid.appendChild(btn);
     });
   }
 
   function renderTabs() {
+    const prevActiveIdx = tabsEl.querySelector(".tab.active") ? [...tabsEl.children].indexOf(tabsEl.querySelector(".tab.active")) : 0;
     tabsEl.innerHTML = "";
     CATEGORIES.forEach((cat, index) => {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "tab";
-      if (index === 0) btn.classList.add("active");
+      if (index === prevActiveIdx) btn.classList.add("active");
       const count = tools.filter(t => t.category === cat.id).length;
       btn.innerHTML = `${cat.icon} ${cat.label} <span class="count">(${count})</span>`;
       btn.addEventListener("click", () => {
@@ -760,6 +951,7 @@
 
   renderTabs();
   renderGrid(CATEGORIES[0].id);
+  initOverridesSync();
 </script>
 
 </body>
