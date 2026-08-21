@@ -849,11 +849,18 @@
     respCompanies.innerHTML = "";
     document.getElementById("dragHint")?.remove();
 
+    if (categoryId === "clientes") {
+      // Aqui é só clique-pra-revelar: a lista de empresas de cada responsável só aparece
+      // depois de clicar no nome dele — nada de mostrar todos os cards de cara.
+      grid.style.display = "none";
+      grid.innerHTML = "";
+      renderResponsaveis(orderedList(categoryId));
+      return;
+    }
+
     const list = orderedList(categoryId);
     grid.style.display = "grid";
     grid.innerHTML = "";
-
-    if (categoryId === "clientes") renderResponsaveis(list);
 
     if (list.length === 0) {
       grid.innerHTML = '<div class="empty">Nenhuma ferramenta neste grupo.</div>';
@@ -863,12 +870,30 @@
     const hint = document.createElement("div");
     hint.className = "drag-hint";
     hint.id = "dragHint";
-    hint.textContent = categoryId === "clientes"
-      ? "Arraste um card pra reordenar, ou solte em cima de um responsável ali em cima pra reatribuir."
-      : "Arraste um card pra reordenar a lista.";
+    hint.textContent = "Arraste um card pra reordenar a lista.";
     grid.parentNode.insertBefore(hint, grid);
 
-    list.forEach(tool => grid.appendChild(buildCard(tool, categoryId, { showResp: categoryId === "clientes" })));
+    list.forEach(tool => grid.appendChild(buildCard(tool, categoryId, {})));
+  }
+
+  // Reordena só a "fatia" da ordem completa da categoria "clientes" que pertence a um
+  // responsável (arrastar dentro da lista revelada de uma pessoa), sem mexer na posição
+  // relativa das ferramentas de outras pessoas.
+  function reorderWithinResp(resp, byRespMap, draggedToolId, targetToolId) {
+    const fullOrder = orderedList("clientes").map(t => t.id);
+    const subIds = byRespMap[resp].map(t => t.id);
+    const from = subIds.indexOf(draggedToolId);
+    const to = subIds.indexOf(targetToolId);
+    if (from === -1 || to === -1) return;
+    subIds.splice(from, 1);
+    subIds.splice(to, 0, draggedToolId);
+    // Reinsere a subsequência reordenada nas mesmas posições (índices) que ela ocupava
+    // dentro da lista completa.
+    const slots = [];
+    fullOrder.forEach((id, i) => { if (subIds.includes(id)) slots.push(i); });
+    const newFullOrder = fullOrder.slice();
+    slots.forEach((slot, i) => { newFullOrder[slot] = subIds[i]; });
+    setOrder("clientes", newFullOrder);
   }
 
   function renderResponsaveis(clientTools) {
@@ -882,26 +907,25 @@
     respGrid.innerHTML = "";
     respGrid.style.display = "flex";
 
+    const activeBefore = respGrid.dataset.activeResp || null;
+
     Object.keys(byResp).sort().forEach(resp => {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "resp-btn";
+      if (resp === activeBefore) btn.classList.add("active");
       btn.innerHTML = `👤 ${resp} <span class="resp-count">(${byResp[resp].length})</span>`;
-      btn.addEventListener("click", () => {
-        const wasActive = btn.classList.contains("active");
-        respGrid.querySelectorAll(".resp-btn").forEach(b => b.classList.remove("active"));
+
+      function revealList() {
         respCompanies.innerHTML = "";
-        if (wasActive) {
-          respCompanies.classList.remove("show");
-          return;
-        }
-        btn.classList.add("active");
         byResp[resp].forEach(tool => {
           const row = document.createElement("a");
           row.className = "company-row";
           row.href = tool.url;
           row.target = "_blank";
           row.rel = "noopener noreferrer";
+          row.draggable = true;
+          row.dataset.toolId = tool.id;
           row.innerHTML = `
             <div class="icon">${tool.icon || "🔗"}</div>
             <div class="company-info">
@@ -910,12 +934,43 @@
             </div>
             <div class="open">Abrir →</div>
           `;
+          row.addEventListener("dragstart", e => {
+            draggedId = tool.id;
+            row.classList.add("dragging");
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", tool.id);
+          });
+          row.addEventListener("dragend", () => row.classList.remove("dragging"));
+          row.addEventListener("dragover", e => { e.preventDefault(); row.classList.add("drag-over"); });
+          row.addEventListener("dragleave", () => row.classList.remove("drag-over"));
+          row.addEventListener("drop", e => {
+            e.preventDefault();
+            row.classList.remove("drag-over");
+            if (!draggedId || draggedId === tool.id) return;
+            reorderWithinResp(resp, byResp, draggedId, tool.id);
+            respGrid.dataset.activeResp = resp;
+            renderResponsaveis(orderedList("clientes"));
+          });
           respCompanies.appendChild(row);
         });
         respCompanies.classList.add("show");
+      }
+
+      btn.addEventListener("click", () => {
+        const wasActive = btn.classList.contains("active");
+        respGrid.querySelectorAll(".resp-btn").forEach(b => b.classList.remove("active"));
+        respCompanies.innerHTML = "";
+        if (wasActive) {
+          respCompanies.classList.remove("show");
+          respGrid.dataset.activeResp = "";
+          return;
+        }
+        btn.classList.add("active");
+        respGrid.dataset.activeResp = resp;
+        revealList();
       });
-      // Arrastar um card de ferramenta em cima deste botão reatribui o responsável — não
-      // precisa estar filtrando por essa pessoa pra soltar aqui.
+      // Arrastar uma empresa (de qualquer lista revelada) em cima deste botão reatribui o
+      // responsável dela — não precisa estar com a lista dessa pessoa aberta pra soltar aqui.
       btn.addEventListener("dragover", e => { e.preventDefault(); btn.classList.add("drag-over"); });
       btn.addEventListener("dragleave", () => btn.classList.remove("drag-over"));
       btn.addEventListener("drop", e => {
@@ -927,6 +982,8 @@
         renderGrid("clientes");
       });
       respGrid.appendChild(btn);
+
+      if (resp === activeBefore) revealList();
     });
   }
 
